@@ -8,7 +8,7 @@ var window, decorator, matrix, buttonMatrix, leds;
 var synthName, scale, octave, root, transp, sustain, amp;
 var player, playButton, control, controlView, sendType;
 var midiDevice, popMidiDevice, midiChannel;
-var synthList = [\ping, \sine];
+var synthList = [\ping, \sine, \bass];
 
 
 var screen = ();
@@ -26,7 +26,7 @@ screen.height = Window.screenBounds.height;
 layout.width = numCols * pointSize;
 layout.height = numRows * pointSize;
 layout.centerPoint = (
-	( (screen.width/2) - (layout.width/2) ) @	
+	( (screen.width/2) - (layout.width/2) ) @
 	( (screen.height/2) - (layout.height/2))
 );
 layout.button = ((layout.width/numCols)@(layout.height/numRows));
@@ -82,12 +82,12 @@ amp = 0.1;
 player = Task({
 	inf.do{ |counter|
 		var col = counter % numCols;
-		
+
 		// main func
 		matrix.colAt(col).do{ |item, pos|
 			var ipos = (pos - (numRows-1)).abs;
 
-			if(item != 0){ 
+			if(item != 0){
 				if(sendType == 0){
 					(
 						instrument:	synthName,
@@ -136,20 +136,20 @@ player = Task({
 						ctranspose:	transp,
 						degree:		ipos
 					).play;
-					
+
 				};
-				
+
 			};
 		};
 
 		// LED func
-		
+
 		if(col != 0){
 			{
 				leds[col].value_(1);	// turn on actual
 				leds[col-1].value_(0);	// turn off last
 			}.defer;
-			
+
 		}{
 			{
 				leds[col].value_(1);
@@ -200,16 +200,16 @@ StaticText(control.window, (control.button.dim.x*2.2)@(control.button.dim.y))
 
 // scale
 control.chooseScale = PopUpMenu(control.window, control.button.dim)
-	.items_(ScaleInfo.scales.keys.asArray.sort)
+	.items_(Scale.names.asArray.sort)
 	.action_({|menu|
-		scale = ScaleInfo.at(menu.item);
+		scale = Scale.at(menu.item);
 		postf("\t*** Using scale: ---> %\n", menu.item.asString);
 	});
 control.chooseScale.valueAction_(0);
 
 // tuning
 control.chooseTuning = PopUpMenu(control.window, control.button.dim)
-	.items_(TuningInfo.tunings.keys.asArray.sort)
+	.items_(Tuning.names.asArray.sort)
 	.action_({|menu|
 		scale.tuning_(menu.item);
 		postf("\t*** Using tuning: ---> %\n", menu.item.asString);
@@ -327,7 +327,7 @@ playButton = Button(control.window, (control.width / 2) - 10 @ control.button.di
 		}{
 			player.pause;
 		}
-	
+
 	});
 
 // stop
@@ -423,5 +423,21 @@ SynthDef(synthList[1], { |out, freq=440, pan, amp=0.1, sustain=0.25|
 	snd = Pan2.ar(snd, pan);
 	OffsetOut.ar(out, snd*amp);
 }).add;
+
+SynthDef(synthList[2], { |out, freq=100, attack=0.1, release=2, amp=0.1, pan|
+	var snd;
+	snd = SinOsc.ar(XLine.kr(
+		[freq, freq*1.5, freq*2, freq*3],
+		[freq, freq*1.5, freq*2, freq*3]/4,
+		release/2,
+		0,
+		0.5)
+	).sum;
+	snd = RLPF.ar(snd, freq*2/3, 0.1);
+	snd = snd * EnvGen.ar(Env.perc(attack, release, 2, -10), doneAction:2);
+	snd = Pan2.ar(snd, pan);
+	OffsetOut.ar(out, snd * amp);
+	OffsetOut.ar(0, snd * amp);
+}).store;
 
 )
